@@ -25,7 +25,6 @@ import { Identity } from '../shapes';
 import ofEvents from './of_events';
 import route from '../common/route';
 import { rvmMessageBus, PluginQuery } from './rvm/rvm_message_bus';
-import { sendToRVM, SendToRVMOpts } from './rvm/utils';
 import { getConfigUrlByUuid } from './core_state.js';
 
 
@@ -94,7 +93,6 @@ export function fetchAndLoadPreloadScripts(
         const err = new Error(message);
         allLoaded = Promise.reject(err);
     } else {
-        log.writeToLog(1, '**** fetchAndLoadPreloadScripts else statement entered', true);
         const loadedScripts: Promise<undefined>[] = preloadOption.map((preload: PreloadInstance) => {
             updatePreloadState(identity, preload, 'load-started');
 
@@ -109,7 +107,7 @@ export function fetchAndLoadPreloadScripts(
                 return Promise.resolve();
             } else {
                 // not previously downloaded *OR* previous downloaded failed
-                if (isPreloadScript(preload)) {
+                if (isPreloadScript(preload)) { // using type guard prevents 'assignable' errors
                     return fetchScript(identity, preload).then(load);
                 } else {
                     return fetchPlugin(identity, preload).then(load);
@@ -150,7 +148,6 @@ function fetchScript(identity: Identity, preloadScript: PreloadInstance): Promis
 // resolves to type `PreloadFetched` on success
 // resolves to `undefined` when fetch fails to download asset to Chromium cache
 function fetchPlugin(identity: Identity, preloadPlugin: PreloadPlugin): Promise<FetchResponse> {
-    log.writeToLog(1, '**** it is reaching fetchPlugin', true);
     return new Promise((resolve, reject) => {
         const sourceUrl = getConfigUrlByUuid(identity.uuid);
         const msg: PluginQuery = {
@@ -164,27 +161,16 @@ function fetchPlugin(identity: Identity, preloadPlugin: PreloadPlugin): Promise<
         };
 
         rvmMessageBus.publish(msg, (resp) => {
-            log.writeToLog(1, `**** RVM message callback ${JSON.stringify(resp, undefined, 4)}`, true);
-            if (resp.payload.hasOwnProperty('path') && resp.action === 'query-plugin') {
-                const pluginPath = resp.payload.path;
-                resolve({identity, preloadPlugin, pluginPath});
-            } else {
-                updatePreloadState(identity, preloadPlugin, 'load-failed');
-                resolve();
-            }
+            cachedFetch(identity.uuid, getIdentifier(preloadPlugin), (fetchError: null | Error, scriptPath: string | undefined) => {
+                if (resp.payload.hasOwnProperty('path') && resp.action === 'query-plugin') {
+                    const pluginPath = resp.payload.path;
+                    resolve({identity, preloadPlugin, pluginPath});
+                } else {
+                    updatePreloadState(identity, preloadPlugin, 'load-failed');
+                    resolve();
+                }
+            });
         });
-
-        // sendToRVM(msg).then((response: any) => {
-        //     log.writeToLog(1, `**** RVM message callback ${JSON.stringify(response, undefined, 4)}`, true);
-        //     cachedFetch(identity.uuid, getIdentifier(preloadPlugin), (fetchError: null | Error, scriptPath: string | undefined) => {
-        //         if (response.payload.hasOwnProperty('path') && response.action === 'query-plugin') {
-        //             resolve({identity, preloadPlugin, scriptPath});
-        //         } else {
-        //             updatePreloadState(identity, preloadPlugin, 'load-failed');
-        //             resolve();
-        //         }
-        //     });
-        // });
     });
 }
 
