@@ -201,6 +201,8 @@ module.exports = {
 
     convertToElectron: function(options, returnAsString) {
 
+        log.writeToLog(1, `**** options before validation: ${JSON.stringify(options, undefined, 4)}`, true);
+
         // build on top of the 5.0 base
         let newOptions = validateOptions(options);
 
@@ -274,13 +276,17 @@ module.exports = {
             newOptions.preload = preload;
         }
 
+        log.writeToLog(1, `**** options: ${JSON.stringify(options, undefined, 4)}`, true);
+
         const plugins = options.plugins;
+        log.writeToLog(1, `**** plugins: ${JSON.stringify(plugins, undefined, 4)}`, true);
         if (!plugins) {
             // for all falsy values
             newOptions.plugins = [];
         } else {
             newOptions.plugins = plugins;
         }
+        log.writeToLog(1, `**** newOptions.plugins: ${JSON.stringify(newOptions.plugins, undefined, 4)}`, true);
 
         if (returnAsString) {
             return JSON.stringify(newOptions);

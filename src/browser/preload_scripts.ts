@@ -94,6 +94,7 @@ export function fetchAndLoadPreloadScripts(
         allLoaded = Promise.reject(err);
     } else {
         const loadedScripts: Promise<undefined>[] = preloadOption.map((preload: PreloadInstance) => {
+            log.writeToLog(1, `**** fetch and load map. preload: ${JSON.stringify(preload, undefined, 4)}`, true);
             updatePreloadState(identity, preload, 'load-started');
 
             // following if clause avoids re-fetch for resources already in memory
@@ -161,15 +162,24 @@ function fetchPlugin(identity: Identity, preloadPlugin: PreloadPlugin): Promise<
         };
 
         rvmMessageBus.publish(msg, (resp) => {
-            cachedFetch(identity.uuid, getIdentifier(preloadPlugin), (fetchError: null | Error, scriptPath: string | undefined) => {
-                if (resp.payload.hasOwnProperty('path') && resp.action === 'query-plugin') {
-                    const pluginPath = resp.payload.path;
-                    resolve({identity, preloadPlugin, pluginPath});
-                } else {
-                    updatePreloadState(identity, preloadPlugin, 'load-failed');
-                    resolve();
-                }
-            });
+            log.writeToLog(1, `**** Fetch plugin RVM response: ${JSON.stringify(resp, undefined, 4)}`, true);
+            if (resp.payload.hasOwnProperty('path') && resp.action === 'query-plugin') {
+                const pluginPath = resp.payload.path;
+                resolve({identity, preloadPlugin, pluginPath});
+            } else {
+                updatePreloadState(identity, preloadPlugin, 'load-failed');
+                resolve();
+            }
+
+            // cachedFetch(identity.uuid, getIdentifier(preloadPlugin), (fetchError: null | Error, scriptPath: string | undefined) => {
+            //     if (resp.payload.hasOwnProperty('path') && resp.action === 'query-plugin') {
+            //         const pluginPath = resp.payload.path;
+            //         resolve({identity, preloadPlugin, pluginPath});
+            //     } else {
+            //         updatePreloadState(identity, preloadPlugin, 'load-failed');
+            //         resolve();
+            //     }
+            // });
         });
     });
 }
@@ -177,6 +187,7 @@ function fetchPlugin(identity: Identity, preloadPlugin: PreloadPlugin): Promise<
 // resolves to type `PreloadLoaded` on success
 // resolves to `undefined` when above fetch failed or when successfully fetched asset fails to load from Chromium cache
 function load(opts: FetchResponse): Promise<undefined> {
+    log.writeToLog(1, `**** load function opts: ${JSON.stringify(opts, undefined, 4)}`, true);
     return new Promise((resolve: Resolver, reject: Rejector) => {
         if (!opts || !opts.scriptPath) {
             resolve(); // got fetchError above OR no error but no scriptPath either; in any case don't attempt to load
@@ -196,9 +207,11 @@ function load(opts: FetchResponse): Promise<undefined> {
                 //END WORKAROUND
 
                 if (!readError) {
+                    log.writeToLog(1, `**** load function, updating script text: ${scriptText}`, true);
                     updatePreloadState(identity, preloadScript, 'load-succeeded');
                     System.setPreloadScript(getIdentifier(preloadScript), scriptText);
                 } else {
+                    log.writeToLog(1, '**** load function, there was a read error', true);
                     updatePreloadState(identity, preloadScript, 'load-failed');
                 }
 
